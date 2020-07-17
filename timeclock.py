@@ -2,12 +2,10 @@
 
 # A simple time-clock program to keep track of hours.
 
-import getopt
 import sys
 import os
 import csv
 from datetime import datetime, time, timedelta
-import colorama
 from colorama import Fore, Style
 from pathlib import Path
 
@@ -136,23 +134,22 @@ def main():
     opts = [opt for opt in sys.argv[1:] if opt.startswith("-")]
     args = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
     usage = f"Usage: {sys.argv[0]} -a <in | out | turn-in | current | status>.\n" \
-            f"\n" \
-            f"in       - Punches you in if you haven\'t punched in already.\n" \
-            f"out      - Punches you out if you have already punched in.\n" \
-            f"turn-in  - Displays how many hours to turn in for last week.\n" \
-            f"current  - Displays how many hours accrued this week so far." \
-            f"status   - Displays whether or not you are punched in." \
+        f"in      | i  - Punches you in if you haven\'t punched in already.\n" \
+        f"out     | o  - Punches you out if you have already punched in.\n" \ 
+        f"turn-in | t  - Displays how many hours to turn in for last week.\n" \ 
+        f"current | c  - Displays how many hours accrued this week so far." \
+        f"status  | s  - Displays whether or not you are punched in."
 
     if "-a" in opts:
-        if "in" in args:
+        if any(arg in args for arg in ['in', 'i']):
             process_action("punch_in")
-        elif "out" in args:
+        elif any(arg in args for arg in ['out', 'o']):
             process_action("punch_out")
-        elif "turn-in" in args:
+        elif any(arg in args for arg in ['turn-in', 't']):
             process_action("turn_in_total")
-        elif "current" in args:
+        elif any(arg in args for arg in ['current', 'c']):
             process_action("current_total")
-        elif "status" in args:
+        elif any(arg in args for arg in ['status', 's']):
             process_action("status")
         else:
             raise SystemExit(usage)

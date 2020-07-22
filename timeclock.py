@@ -16,6 +16,9 @@ DATETIME_STRING_FORMAT = "%B %d, %Y %H:%M:%S"
 NOW = datetime.now()
 WORK_HOURS = []
 
+_RED = Fore.RED
+_GREEN = Fore.GREEN
+_RESET = Style.RESET_ALL
 
 def load_work_hours():
     # Create the file if it doesn't already exist.
@@ -42,7 +45,7 @@ def write_hour_data():
 
 
 def display_success(action, time):
-    print('Punched you ' + Fore.GREEN + action + Style.RESET_ALL + f': {time.strftime(DATETIME_STRING_FORMAT)}')
+    print('Punched you ' + _GREEN + action + _RESET + f': {time.strftime(DATETIME_STRING_FORMAT)}')
 
 
 def punch_in(punch_in_date_time=None):
@@ -57,16 +60,16 @@ def punch_in(punch_in_date_time=None):
         display_success('in', punch_in_date_time if not None else NOW)
         current_total()
     elif len(WORK_HOURS[0]) == 1:
-        raise SystemExit(Fore.RED + 'Error. ' + Style.RESET_ALL + 'Please punch out first.')
+        raise SystemExit(_RED + 'Error. ' + _RESET + 'Please punch out first.')
     else:
-        print(Fore.RED + 'Something went wrong punching you in.' + Style.RESET_ALL)
+        print(_RED + 'Something went wrong punching you in.' + _RESET)
 
 
 def punch_out(punch_out_date_time=None):
     # Punch out only if there is a dangling punch in.
     # We always work with the first element in the list.
     if not WORK_HOURS or len(WORK_HOURS[0]) == 2:
-        print(Fore.RED + 'Error.  ' + Style.RESET_ALL + 'Please punch in first.')
+        print(_RED + 'Error.  ' + _RESET + 'Please punch in first.')
         sys.exit()
     elif len(WORK_HOURS[0]) == 1:
         if punch_out_date_time is None:
@@ -75,12 +78,12 @@ def punch_out(punch_out_date_time=None):
             if float(WORK_HOURS[0][0]) < punch_out_date_time.timestamp():
                 WORK_HOURS[0] = [WORK_HOURS[0][0], punch_out_date_time.timestamp()]
             else:
-                raise SystemExit(Fore.RED + 'Your punch-out time can\'t be before your punch-in time.' + Style.RESET_ALL)
+                raise SystemExit(_RED + 'Your punch-out time can\'t be before your punch-in time.' + _RESET)
         write_hour_data()
         display_success('out', punch_out_date_time if not None else NOW)
         current_total()
     else:
-        print(Fore.RED + 'Something went wrong punching you out.' + Style.RESET_ALL)
+        print(_RED + 'Something went wrong punching you out.' + _RESET)
 
 
 def turn_in_total():
@@ -96,7 +99,7 @@ def turn_in_total():
             if start_of_previous_week.timestamp() <= check_in < end_of_previous_week.timestamp():
                 total_seconds_worked += (float(entry[1]) - check_in)
 
-    print(f'Total hours to turn in for last week: ' + Fore.GREEN + f'{total_seconds_worked / 3600:.2f}' + Style.RESET_ALL)
+    print(f'Total hours to turn in for last week: ' + _GREEN + f'{total_seconds_worked / 3600:.2f}' + _RESET)
 
 
 def current_total():
@@ -118,8 +121,8 @@ def current_total():
             total_seconds_worked += (NOW.timestamp() - check_in)
             total_seconds_worked_today += (NOW.timestamp() - check_in)
 
-    print(f'Current week\'s total hours: ' + Fore.GREEN + f'{total_seconds_worked / 3600:.2f}' + Style.RESET_ALL + ', ' +
-          Fore.GREEN + f'{total_seconds_worked_today / 3600:.2f}' + Style.RESET_ALL + ' today')
+    print(f'Current week\'s total hours: ' + _GREEN + f'{total_seconds_worked / 3600:.2f}' + _RESET + ', ' +
+          _GREEN + f'{total_seconds_worked_today / 3600:.2f}' + _RESET + ' today')
 
 
 def process_action(action, date_time_obj=None):
@@ -133,11 +136,11 @@ def process_action(action, date_time_obj=None):
 
 def status():
     if not WORK_HOURS or len(WORK_HOURS[0]) == 2:
-        status_text = Fore.RED + 'out' + Style.RESET_ALL
+        status_text = _RED + 'out' + _RESET
     elif len(WORK_HOURS[0]) == 1:
-        status_text = Fore.GREEN + 'in' + Style.RESET_ALL
+        status_text = _GREEN + 'in' + _RESET
     else:
-        print(Fore.RED + 'Something went wrong' + Style.RESET_ALL)
+        print(_RED + 'Something went wrong' + _RESET)
         sys.exit()
     print(f'You are currently punched {status_text}.')
     current_total()

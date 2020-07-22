@@ -8,6 +8,7 @@ import csv
 from datetime import datetime, time, timedelta
 from colorama import Fore, Style
 from pathlib import Path
+import shutil
 
 # The data file holding punch-ins and outs.  Data is stored newest to oldest.
 DATA_FILE = str(Path.home()) + '/timeclock.csv'
@@ -30,41 +31,53 @@ def load_work_hours():
 
 
 def write_hour_data():
+
+    # Todo: Don't backup an empty file.
+    shutil.copy(DATA_FILE, DATA_FILE + '.bak')
+
     # Write the hourly data to the csv file.
     with open(DATA_FILE, mode='w+') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerows(WORK_HOURS)
 
 
-def display_success(action):
-    print('Punched you ' + Fore.GREEN + action + Style.RESET_ALL + f': {NOW.strftime(DATETIME_STRING_FORMAT)}')
+def display_success(action, time):
+    print('Punched you ' + Fore.GREEN + action + Style.RESET_ALL + f': {time.strftime(DATETIME_STRING_FORMAT)}')
 
 
-def punch_in():
+def punch_in(punch_in_date_time=None):
     # Punch in if there is no dangling punch in already existing.
     # We always work with the first element in the list.
     if not WORK_HOURS or len(WORK_HOURS[0]) == 2:
-        WORK_HOURS.insert(0, [NOW.timestamp()])
+        if not punch_in_date_time:
+            WORK_HOURS.insert(0, [NOW.timestamp()])
+        else:
+            WORK_HOURS.insert(0, [punch_in_date_time.timestamp()])
         write_hour_data()
-        display_success('in')
+        display_success('in', punch_in_date_time if not None else NOW)
         current_total()
     elif len(WORK_HOURS[0]) == 1:
-        print(Fore.RED + 'Error. ' + Style.RESET_ALL + 'You have already punched in, you need to punch out first.')
-        sys.exit()
+        raise SystemExit(Fore.RED + 'Error. ' + Style.RESET_ALL + 'Please punch out first.')
     else:
         print(Fore.RED + 'Something went wrong punching you in.' + Style.RESET_ALL)
 
 
-def punch_out():
+def punch_out(punch_out_date_time=None):
     # Punch out only if there is a dangling punch in.
     # We always work with the first element in the list.
     if not WORK_HOURS or len(WORK_HOURS[0]) == 2:
-        print(Fore.RED + 'Error.  ' + Style.RESET_ALL + 'You have already punched out, you need to punch in first.')
+        print(Fore.RED + 'Error.  ' + Style.RESET_ALL + 'Please punch in first.')
         sys.exit()
     elif len(WORK_HOURS[0]) == 1:
-        WORK_HOURS[0] = [WORK_HOURS[0][0], NOW.timestamp()]
+        if punch_out_date_time is None:
+            WORK_HOURS[0] = [WORK_HOURS[0][0], NOW.timestamp()]
+        else:
+            if float(WORK_HOURS[0][0]) < punch_out_date_time.timestamp():
+                WORK_HOURS[0] = [WORK_HOURS[0][0], punch_out_date_time.timestamp()]
+            else:
+                raise SystemExit(Fore.RED + 'Your punch-out time can\'t be before your punch-in time.' + Style.RESET_ALL)
         write_hour_data()
-        display_success('out')
+        display_success('out', punch_out_date_time if not None else NOW)
         current_total()
     else:
         print(Fore.RED + 'Something went wrong punching you out.' + Style.RESET_ALL)
@@ -109,10 +122,13 @@ def current_total():
           Fore.GREEN + f'{total_seconds_worked_today / 3600:.2f}' + Style.RESET_ALL + ' today')
 
 
-def process_action(function):
+def process_action(action, date_time_obj=None):
     load_work_hours()
     # Call the appropriate method based on the user provided argument
-    getattr(sys.modules[__name__], function)()
+    if date_time_obj is None:
+        getattr(sys.modules[__name__], action)()
+    else:
+        getattr(sys.modules[__name__], action)(date_time_obj)
 
 
 def status():
@@ -129,22 +145,26 @@ def status():
 
 
 def main():
-    # TODO: add the ability to pass in a custom datetime from cli for in/out
-
     opts = [opt for opt in sys.argv[1:] if opt.startswith("-")]
     args = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
     usage = f"Usage: {sys.argv[0]} -a <in | out | turn-in | current | status>.\n" \
-        f"in      | i  - Punches you in if you haven\'t punched in already.\n" \
-        f"out     | o  - Punches you out if you have already punched in.\n" \
-        f"turn-in | t  - Displays how many hours to turn in for last week.\n" \
-        f"current | c  - Displays how many hours accrued this week so far." \
-        f"status  | s  - Displays whether or not you are punched in."
+        f"in                | i  - Punches you in if you haven\'t punched in already.\n" \
+        f"out               | o  - Punches you out if you have already punched out.\n" \
+        f"turn-in           | t  - Displays how many hours to turn in for last week.\n" \
+        f"current           | c  - Displays how many hours accrued this week so far." \
+        f"status            | s  - Displays whether or not you are punched in."
 
+    date_time_obj = None
+    if "-d" in opts:
+        if len(args) == 2 and isinstance(args[1], str):
+            date_time_obj = datetime.strptime(args[1], '%Y-%m-%d %H:%M')
+        else:
+            raise SystemExit(usage)
     if "-a" in opts:
         if any(arg in args for arg in ['in', 'i']):
-            process_action("punch_in")
+            process_action("punch_in", date_time_obj)
         elif any(arg in args for arg in ['out', 'o']):
-            process_action("punch_out")
+            process_action("punch_out", date_time_obj)
         elif any(arg in args for arg in ['turn-in', 't']):
             process_action("turn_in_total")
         elif any(arg in args for arg in ['current', 'c']):

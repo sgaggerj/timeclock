@@ -57,7 +57,7 @@ def punch_in(punch_in_date_time=None):
         else:
             WORK_HOURS.insert(0, [punch_in_date_time.timestamp()])
         write_hour_data()
-        display_success('in', punch_in_date_time if not None else NOW)
+        display_success('in', punch_in_date_time or NOW)
         current_total()
     elif len(WORK_HOURS[0]) == 1:
         raise SystemExit(_RED + 'Error. ' + _RESET + 'Please punch out first.')
@@ -80,7 +80,7 @@ def punch_out(punch_out_date_time=None):
             else:
                 raise SystemExit(_RED + 'Your punch-out time can\'t be before your punch-in time.' + _RESET)
         write_hour_data()
-        display_success('out', punch_out_date_time if not None else NOW)
+        display_success('out',  punch_out_date_time or NOW)
         current_total()
     else:
         print(_RED + 'Something went wrong punching you out.' + _RESET)

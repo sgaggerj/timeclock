@@ -150,7 +150,7 @@ def status():
 def main():
     opts = [opt for opt in sys.argv[1:] if opt.startswith("-")]
     args = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
-    usage = f"Usage: {sys.argv[0]} -a <in | out | turn-in | current | status>.\n" \
+    usage = f"Usage: {sys.argv[0]} -a <in | out | turn-in | current | status> [-d <YYYY-mm-dd HH:MM>]\n" \
         f"in                | i  - Punches you in if you haven\'t punched in already.\n" \
         f"out               | o  - Punches you out if you have already punched out.\n" \
         f"turn-in           | t  - Displays how many hours to turn in for last week.\n" \

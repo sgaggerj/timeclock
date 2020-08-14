@@ -17,9 +17,20 @@ DATETIME_STRING_FORMAT = "%B %d, %Y %H:%M:%S"
 NOW = datetime.now()
 WORK_HOURS = []
 
-_RED = Fore.RED
 _GREEN = Fore.GREEN
 _RESET = Style.RESET_ALL
+
+
+def red_string(string: str) -> str:
+    return Fore.RED + string + _RESET
+
+
+def green_string(string: str) -> str:
+    return _GREEN + string + _RESET
+
+
+def seconds_to_formatted_hours(seconds: int, highlight=None) -> str:
+    return (highlight if highlight else '') + '{:.2f}'.format(seconds / 3600) + (_RESET if highlight else '')
 
 
 def load_work_hours():
@@ -46,11 +57,11 @@ def write_hour_data():
         writer.writerows(WORK_HOURS)
 
 
-def display_success(action, _time):
-    print(f'Punched you {_GREEN}{action}{_RESET}: {_time.strftime(DATETIME_STRING_FORMAT)}')
+def display_punch_success(action, _time):
+    print(f'Punched you {green_string(action)}: {_time.strftime(DATETIME_STRING_FORMAT)}')
 
 
-def punch_in(punch_in_date_time=None):
+def do_punch_in(punch_in_date_time=None):
     # Punch in if there is no dangling punch in already existing.
     # We always work with the first element in the list.
     if not WORK_HOURS or len(WORK_HOURS[0]) == 2:
@@ -59,19 +70,19 @@ def punch_in(punch_in_date_time=None):
         else:
             WORK_HOURS.insert(0, [punch_in_date_time.timestamp()])
         write_hour_data()
-        display_success('in', punch_in_date_time or NOW)
-        current_total()
+        display_punch_success('in', punch_in_date_time or NOW)
+        display_current_total()
     elif len(WORK_HOURS[0]) == 1:
-        raise SystemExit(f'{_RED}Error{_RESET}: Please punch out first.')
+        raise SystemExit(f'{red_string("Error")}: Please punch out first.')
     else:
-        print(f'{_RED}Something went wrong punching you in.{_RESET}')
+        print(f'{red_string("Something went wrong punching you in.")}')
 
 
-def punch_out(punch_out_date_time=None):
+def do_punch_out(punch_out_date_time=None):
     # Punch out only if there is a dangling punch in.
     # We always work with the first element in the list.
     if not WORK_HOURS or len(WORK_HOURS[0]) == 2:
-        print(f'{_RED}Error{_RESET}: Please punch in first.')
+        print(f'{red_string("Error")}: Please punch in first.')
         sys.exit()
     elif len(WORK_HOURS[0]) == 1:
         if punch_out_date_time is None:
@@ -80,15 +91,15 @@ def punch_out(punch_out_date_time=None):
             if float(WORK_HOURS[0][0]) < punch_out_date_time.timestamp():
                 WORK_HOURS[0] = [WORK_HOURS[0][0], punch_out_date_time.timestamp()]
             else:
-                raise SystemExit(f'{_RED}Your punch-out time can\'t be before your punch-in time.{_RESET}')
+                raise SystemExit(f'{red_string("Your punch-out time cannot be before your punch-in time.")}')
         write_hour_data()
-        display_success('out', punch_out_date_time or NOW)
-        current_total()
+        display_punch_success('out', punch_out_date_time or NOW)
+        display_current_total()
     else:
-        print(f'{_RED}Something went wrong punching you out.{_RESET}')
+        print(f'{red_string("Something went wrong punching you out.")}')
 
 
-def turn_in_total():
+def display_turn_in_total():
     # This past Monday at midnight
     end_of_previous_week = datetime.combine(NOW - timedelta(days=NOW.weekday()), time())
     # The previous Monday at midnight
@@ -101,29 +112,47 @@ def turn_in_total():
             if start_of_previous_week.timestamp() <= check_in < end_of_previous_week.timestamp():
                 total_seconds_worked += (float(entry[1]) - check_in)
 
-    print(f'Total hours to turn in for last week: {_GREEN}{total_seconds_worked / 3600:.2f}{_RESET}')
+    print(f'Total hours to turn in for last week: {green_string(seconds_to_formatted_hours(total_seconds_worked))}')
 
 
-def current_total():
+def display_current_total():
     # This past Monday at midnight
     start_of_current_week = datetime.combine(NOW - timedelta(days=NOW.weekday()), time())
-    start_of_current_day = datetime.combine(NOW - timedelta(0), time())
-    total_seconds_worked = 0
-    total_seconds_worked_today = 0
+
+    days = {
+        0: {'title': 'Monday', 'value': 0},
+        1: {'title': 'Tuesday', 'value': 0},
+        2: {'title': 'Wednesday', 'value': 0},
+        3: {'title': 'Thursday', 'value': 0},
+        4: {'title': 'Friday', 'value': 0},
+        5: {'title': 'Saturday', 'value': 0},
+        6: {'title': 'Sunday', 'value': 0}
+    }
 
     # Calculate the current week's hours.
     for entry in WORK_HOURS:
         check_in = float(entry[0])
-        if len(entry) == 2:
-            if check_in >= start_of_current_week.timestamp():
-                total_seconds_worked += (float(entry[1]) - check_in)
-            if check_in >= start_of_current_day.timestamp():
-                total_seconds_worked_today += (float(entry[1]) - check_in)
+        diff = 0
+        # if the check in was part of the current week
+        if len(entry) == 2 and check_in >= start_of_current_week.timestamp():
+            diff = float(entry[1]) - check_in
+        # Assumption here is that no prior week entry will have just a check-in only.
         elif len(entry) == 1:
-            total_seconds_worked += (NOW.timestamp() - check_in)
-            total_seconds_worked_today += (NOW.timestamp() - check_in)
+            diff = NOW.timestamp() - check_in
+        days[datetime.fromtimestamp(check_in).weekday()]['value'] += diff
 
-    print(f'Current week\'s total hours: {_GREEN}{total_seconds_worked / 3600:.2f}{_RESET}, {_GREEN}{total_seconds_worked_today / 3600:.2f}{_RESET} today')
+    print(f'\nSummary for the week of {start_of_current_week.strftime("%m/%d/%Y")}:')
+    total_seconds_worked = 0
+    total_seconds_worked_today = 0
+    for day in days.values():
+        total_seconds_worked += day['value']
+        display = day['title'] + ' ' + seconds_to_formatted_hours(day['value'])
+        if NOW.strftime('%A') == day['title']:
+            display = green_string(display)
+            total_seconds_worked_today += day['value']
+        print(f'{display}')
+
+    print(f'\nCurrent week\'s total hours: {green_string(seconds_to_formatted_hours(total_seconds_worked))}, {green_string(seconds_to_formatted_hours(total_seconds_worked_today))} today')
 
 
 def process_action(action, date_time_obj=None):
@@ -135,17 +164,17 @@ def process_action(action, date_time_obj=None):
         getattr(sys.modules[__name__], action)(date_time_obj)
 
 
-def status():
+def display_status():
     if not WORK_HOURS or len(WORK_HOURS[0]) == 2:
-        status_text = _RED + 'out' + _RESET
+        status_text = red_string('out')
     elif len(WORK_HOURS[0]) == 1:
-        status_text = _GREEN + 'in' + _RESET
+        status_text = green_string('in')
     else:
-        print(f'{_RED}Something went wrong{_RESET}')
+        print(f'{red_string("Something went wrong")}')
         sys.exit()
-    print(f'You are currently punched {status_text}.')
-    current_total()
-    turn_in_total()
+    print(f'\nYou are currently punched {status_text}.')
+    display_current_total()
+    display_turn_in_total()
 
 
 def main():
@@ -166,15 +195,15 @@ def main():
             raise SystemExit(usage)
     if "-a" in opts:
         if any(arg in args for arg in ['in', 'i']):
-            process_action("punch_in", date_time_obj)
+            process_action("do_punch_in", date_time_obj)
         elif any(arg in args for arg in ['out', 'o']):
-            process_action("punch_out", date_time_obj)
+            process_action("do_punch_out", date_time_obj)
         elif any(arg in args for arg in ['turn-in', 't']):
-            process_action("turn_in_total")
+            process_action("display_turn_in_total")
         elif any(arg in args for arg in ['current', 'c']):
-            process_action("current_total")
+            process_action("display_current_total")
         elif any(arg in args for arg in ['status', 's']):
-            process_action("status")
+            process_action("display_status")
         else:
             raise SystemExit(usage)
     else:
